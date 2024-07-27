@@ -15,8 +15,8 @@ class EnsureTokenIsValid
     {
         $path = $request->getRequestUri();
         $isAuthUrl = preg_match('/\/auth\//', $path);
-
-        if ($isAuthUrl) {
+        $isRootPath = preg_match('/\/admin\//', $path);
+        if ($isAuthUrl || $isRootPath) {
             return $next($request);
         }
 
@@ -36,7 +36,7 @@ class EnsureTokenIsValid
         } catch (TokenInvalidException $e) {
             return response()->json(['error' => 'La sesión no es valida'], 401);
         } catch (JWTException $e) {
-            return response()->json(['error' => 'Error de autenticación: ' . $e->getMessage()], 401);
+            return response()->json(['error' => $e->getMessage()], 401);
         }
     }
 }

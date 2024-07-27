@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 
 class ProfileController extends Controller
 {
@@ -34,10 +35,28 @@ class ProfileController extends Controller
         ];
 
         try {
+
             $user = User::findOrFail(Auth::user()->id);
 
+            $nameChanged = $request->has('name') && $user->name !== $request->name;
+            $emailChanged = $request->has('email') && $user->email !== $request->email;
+            $clubChanged = $request->has('club') && $user->club !== $request->club;
+            $parcheChanged = $request->has('parche') && $user->parche !== $request->parche;
+
+            if (!$nameChanged && !$emailChanged && !$clubChanged && !$parcheChanged) {
+                $userData = [
+                    'id' => Crypt::encryptString(auth::user()->id),
+                    'name' => auth::user()->name,
+                    'role' => auth::user()->role,
+                    'email' => auth::user()->email,
+                    'parche' => auth::user()->parche,
+                    'club' => auth::user()->club
+                ];
+                return response()->json(['user_session' => $userData, 'error' => 'No se han encontrado cambios para actualizar'], Response::HTTP_NOT_ACCEPTABLE);
+            }
+
             // Validar y actualizar el nombre de usuario
-            if ($request->has('name')) {
+            if ($nameChanged) {
                 $rules = [
                     'name' => [
                         'required',
@@ -48,27 +67,20 @@ class ProfileController extends Controller
                     ]
                 ];
 
-                // Si el nombre actual es diferente al nuevo nombre
+                // Agregar regla de unicidad solo si el nombre ya existe
                 if ($user->name !== $request->name) {
-                    // Agregar regla de unicidad solo si el nombre ya existe
                     $rules['name'][] = 'unique:users';
                 }
 
-                // Validar el nombre
-                $validator = Validator::make($request->all(), $rules, $errorMessages);
-
-                if ($validator->fails()) {
-                    return response()->json(['error' => $validator->errors()->first()], Response::HTTP_BAD_REQUEST);
-                }
+                Validator::make($request->all(), $rules, $errorMessages)->validate();
 
                 $user->name = $request->name;
                 $user->name_modifyed_at = now();
                 $user->save();
             }
 
-
             // Validar y actualizar el correo electrónico
-            if ($request->has('email') && $user->email !== $request->email) {
+            if ($emailChanged) {
                 Validator::make($request->all(), [
                     'email' => 'required|string|email|max:255|unique:users'
                 ], $errorMessages)->validate();
@@ -78,7 +90,7 @@ class ProfileController extends Controller
             }
 
             // Validar y actualizar el club
-            if ($request->has('club') && $user->club !== $request->club) {
+            if ($clubChanged) {
                 Validator::make($request->all(), [
                     'club' => 'required|string'
                 ], $errorMessages)->validate();
@@ -88,7 +100,7 @@ class ProfileController extends Controller
             }
 
             // Validar y actualizar el parche
-            if ($request->has('parche') && $user->parche !== $request->parche) {
+            if ($parcheChanged) {
                 Validator::make($request->all(), [
                     'parche' => 'required|string|min:2|max:6|regex:/^[\w@\-()\[\]]+$/'
                 ], $errorMessages)->validate();
@@ -97,7 +109,7 @@ class ProfileController extends Controller
                 $user->save();
             }
 
-            return response()->json(['user' => $user, 'message' => 'Se ha actualizado tu perfil'], Response::HTTP_OK);
+            return response()->json(['user_session' => $user, 'message' => 'Se ha actualizado tu perfil'], Response::HTTP_OK);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }

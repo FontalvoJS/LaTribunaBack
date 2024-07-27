@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Password;
 use Symfony\Component\HttpFoundation\Response;
-
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
@@ -65,6 +65,7 @@ class AuthController extends Controller
             'name' => $request->name,
             'role' => 'guest',
             'email' => $request->email,
+            'active' => true,
             'password' => Hash::make($request->password),
         ]);
 
@@ -105,10 +106,18 @@ class AuthController extends Controller
         return response()->json(["user_session" => $userData], Response::HTTP_OK)->withCookie($cookie);
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
-        Auth::logout();
-        return response()->json(['message' => 'Se ha cerrado la sesión'], Response::HTTP_OK);
+        try {
+            $token = $request->cookie('jwt');
+            if ($token) {
+                auth::setToken($token)->invalidate();
+                $fake_cookie = cookie('jwt', 'unauthenticated', -1, "/", null, false, true, false, false, "lax");
+                return response()->json(['message' => 'Sesión finalizada'], Response::HTTP_OK)->withCookie($fake_cookie);
+            }
+        } catch (JWTException $e) {
+            return response()->json(['error' => $e], Response::HTTP_BAD_REQUEST);
+        }
     }
 
     public function forgotPassword(Request $request)
@@ -155,6 +164,16 @@ class AuthController extends Controller
             }
         );
 
-        return $status === Password::PASSWORD_RESET ? response()->json(['status' => 'Ya puedes iniciar sesión con tu nueva contraseña'], Response::HTTP_OK) : response()->json(['error' => 'Token vencido, genera otro para continuar'], Response::HTTP_BAD_REQUEST);
+        return $status === Password::PASSWORD_RESET ? response()->json(['message' => 'Ya puedes iniciar sesión con tu nueva contraseña'], Response::HTTP_OK) : response()->json(['error' => 'Token vencido, genera otro para continuar'], Response::HTTP_BAD_REQUEST);
+    }
+    public function verifyToken($token)
+    {
+        if (!$token) {
+            return response()->json(['error' => 'No existe token'], Response::HTTP_UNAUTHORIZED);
+        }
+        if (!auth::setToken($token)->user()) {
+            return response()->json(['error' => 'Token inválido'], Response::HTTP_UNAUTHORIZED);
+        }
+        return response()->json(['message' => 'Token valido'], Response::HTTP_OK);
     }
 }
