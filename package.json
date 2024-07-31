@@ -4,7 +4,6 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "vercel build": "vercel build"
     },
     "devDependencies": {
         "axios": "^1.6.4",

@@ -37,6 +37,8 @@ Route::group([
 ], function ($router) {
     Route::post('upload-content-images', [PostController::class, 'uploadContentImages']);
     Route::post('create-post', [PostController::class, 'createPost']);
+    Route::post('update-post', [PostController::class, 'updatePost']);
     Route::get('get-preview-posts', [PostController::class, 'getPreviewPosts']);
     Route::get('get-one-post/{id}', [PostController::class, 'getOnePost']);
+    Route::delete('delete-post/{id}', [PostController::class, 'deletePost']);
 });

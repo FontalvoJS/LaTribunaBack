@@ -11,15 +11,16 @@ class Post extends Model
     use HasFactory;
     protected $fillable = [
         'title',
-        'body',
         'author',
         'tags',
         'category',
+        'content',
+        'slug',
         'description',
         'image'
     ];
 
-    protected static function boot ()
+    protected static function boot()
     {
         parent::boot();
         static::creating(function ($post) {
