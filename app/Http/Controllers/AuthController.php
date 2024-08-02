@@ -12,66 +12,70 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Password;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Exceptions\JWTException;
+use App\Models\EmailVerifications;
+use App\Models\Post;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\VerifyEmailNotify;
+use Exception;
 
 class AuthController extends Controller
 {
 
     public function register(Request $request)
     {
+        try {
+            $errorMessages = [
+                'name.required' => 'El nombre es obligatorio',
+                'email.required' => 'El email es obligatorio',
+                'password.required' => 'La contraseña es obligatoria',
+                'password.string' => 'La contraseña no es valida',
+                'password.max' => 'La contraseña no es valida',
+                'password.min' => 'La contraseña no es valida',
+                'email.email' => 'El email no es valido',
+                'email.string' => 'El email no es valido',
+                'email.max' => 'El email no es valido',
+                'email.min' => 'El email no es valido',
+                'email.unique' => 'El email ya existe',
+                'name.regex' => 'El nombre solo puede tener letras, numeros y los siguientes caracteres: @|()[]-_',
+                'email_confirmation.required' => 'La confirmación del email es obligatoria',
+                'email_confirmation.email' => 'El email no es valido',
+                'email_confirmation.string' => 'El email no es valido',
+                'email_confirmation.max' => 'El email no es valido',
+                'email_confirmation.min' => 'El email no es valido',
+                'password_confirmation.required' => 'La confirmación de la contraseña es obligatoria',
+                'password_confirmation.string' => 'La confirmación de la contraseña no es valida',
+                'password_confirmation.max' => 'La confirmación de la contraseña no es valida',
+                'password_confirmation.min' => 'La confirmación de la contraseña no es valida',
 
-        $errorMessages = [
-            'name.required' => 'El nombre es obligatorio',
-            'email.required' => 'El email es obligatorio',
-            'password.required' => 'La contraseña es obligatoria',
-            'password.string' => 'La contraseña no es valida',
-            'password.max' => 'La contraseña no es valida',
-            'password.min' => 'La contraseña no es valida',
-            'email.email' => 'El email no es valido',
-            'email.string' => 'El email no es valido',
-            'email.max' => 'El email no es valido',
-            'email.min' => 'El email no es valido',
-            'email.unique' => 'El email ya existe',
-            'name.regex' => 'El nombre solo puede tener letras, numeros y los siguientes caracteres: @|()[]-_',
-            'email_confirmation.required' => 'La confirmación del email es obligatoria',
-            'email_confirmation.email' => 'El email no es valido',
-            'email_confirmation.string' => 'El email no es valido',
-            'email_confirmation.max' => 'El email no es valido',
-            'email_confirmation.min' => 'El email no es valido',
-            'password_confirmation.required' => 'La confirmación de la contraseña es obligatoria',
-            'password_confirmation.string' => 'La confirmación de la contraseña no es valida',
-            'password_confirmation.max' => 'La confirmación de la contraseña no es valida',
-            'password_confirmation.min' => 'La confirmación de la contraseña no es valida',
+            ];
+            $validator = Validator::make($request->all(), [
+                'name' => [
+                    'required',
+                    'string',
+                    'max:40',
+                    'min:4',
+                    'regex:/^[\w@|\-()\[\]]+$/', // Expresión regular personalizada
+                ],
+                'email' => 'required|string|email|max:255|unique:users|confirmed',
+                'email_confirmation' => 'required|string|email|max:255',
+                'password' => 'required|string|min:8|confirmed',
+                'password_confirmation' => 'required|string|min:8',
+            ], $errorMessages);
 
-        ];
-        $validator = Validator::make($request->all(), [
-            'name' => [
-                'required',
-                'string',
-                'max:40',
-                'min:4',
-                'regex:/^[\w@|\-()\[\]]+$/', // Expresión regular personalizada
-            ],
-            'email' => 'required|string|email|max:255|unique:users|confirmed',
-            'email_confirmation' => 'required|string|email|max:255',
-            'password' => 'required|string|min:8|confirmed',
-            'password_confirmation' => 'required|string|min:8',
-        ], $errorMessages);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), Response::HTTP_BAD_REQUEST);
+            if ($validator->fails()) {
+                return response()->json($validator->errors(), Response::HTTP_BAD_REQUEST);
+            }
+            User::create([
+                'name' => $request->name,
+                'role' => 'guest',
+                'email' => $request->email,
+                'active' => true,
+                'password' => Hash::make($request->password),
+            ]);
+            return response()->json(['message' => 'Te has registrado exitosamente, ya puedes iniciar sesión.'], Response::HTTP_CREATED);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Hubo un error inesperado, inténtalo de nuevo. ' . $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
-
-        $user = User::create([
-            'name' => $request->name,
-            'role' => 'guest',
-            'email' => $request->email,
-            'active' => true,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = JWTAuth::fromUser($user);
-
-        return response()->json(compact('user'), Response::HTTP_CREATED);
     }
 
     public function login(Request $request)
@@ -175,5 +179,60 @@ class AuthController extends Controller
             return response()->json(['error' => 'Token inválido'], Response::HTTP_UNAUTHORIZED);
         }
         return response()->json(['message' => 'Token valido'], Response::HTTP_OK);
+    }
+
+    public function generateToken($email)
+    {
+        try {
+            $email_verifications_table = new EmailVerifications();
+            $alreadyExists = $email_verifications_table->where('email', $email)->exists();
+            $userExists = User::where('email', $email)->exists();
+            if ($alreadyExists) {
+                $email_verifications_table->where('email', $email)->delete();
+            }
+            if ($userExists) {
+                return response()->json(['error' => 'El usuario ya existe'], Response::HTTP_BAD_REQUEST);
+            }
+            $code = rand(100000, 999999);
+            $email_verifications_table->token = $code;
+            $email_verifications_table->token_type = 'email';
+            $email_verifications_table->email = $email;
+            $email_verifications_table->save();
+            Notification::route('mail', $email)->notify(new VerifyEmailNotify($code));
+            return response()->json(['message' => 'Se ha enviado un correo de verificación'], Response::HTTP_OK);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Hubo un error inesperado. Inténtalo de nuevo. ' . $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+    }
+    public function verifyEmail(Request $request)
+    {
+        $errorMessages = [
+            'token.required' => 'El token es obligatorio',
+        ];
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+        ], $errorMessages);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), Response::HTTP_BAD_REQUEST);
+        }
+        $token = $request->token;
+        if (!$token && strlen($token) > 6 || strlen($token) < 6) {
+            return response()->json(['error' => 'Codigo inválido'], Response::HTTP_UNAUTHORIZED);
+        }
+        $email_verifications_table = new EmailVerifications();
+        $verifyCode = $email_verifications_table->where(['token' => $token, 'token_type' => 'email', 'active' => true])->first();
+        if (!$verifyCode) {
+            return response()->json(['error' => 'El codigo no coincide'], Response::HTTP_UNAUTHORIZED);
+        }
+        try {
+            $response = $this->register($request);
+            $email_verifications_table->where('token', $token)->update(['verified' => true, 'active' => false]);
+            $user = User::where('email', $request->email)->first();
+            $user->email_verified = true;
+            $user->save();
+            return $response;
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Hubo un error inesperado. Inténtalo de nuevo. ' . $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
     }
 }

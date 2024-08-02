@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Str;
-
 class PostController extends Controller
 {
 
@@ -247,4 +246,5 @@ class PostController extends Controller
             return response()->json(['error' => 'Error al eliminar el artículo: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
 }

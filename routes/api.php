@@ -18,6 +18,8 @@ Route::group([
     Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
     Route::post('verify-token/{token}', [AuthController::class, 'verifyToken']);
+    Route::post('generate-token/{email}', [AuthController::class, 'generateToken']);
+    Route::post('verify-email/', [AuthController::class, 'verifyEmail']);
 });
 
 Route::group([
