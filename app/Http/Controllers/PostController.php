@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Str;
+
 class PostController extends Controller
 {
 
@@ -139,7 +140,6 @@ class PostController extends Controller
                 'title.required' => 'El título es obligatorio',
                 'title.string' => 'El título debe ser una cadena de texto',
                 'title.max' => 'El título no debe exceder los 255 caracteres',
-                'title.unique' => 'El título ya existe',
                 'description.required' => 'La descripción es obligatoria',
                 'description.string' => 'La descripción debe ser una cadena de texto',
                 'description.max' => 'La descripción no debe exceder los 1000 caracteres',
@@ -160,7 +160,7 @@ class PostController extends Controller
 
             ];
             $rules = [
-                'title' => 'required|string|max:255|unique:posts',
+                'title' => 'required|string|max:255',
                 'description' => 'required|string|max:1000',
                 'tags' => 'required|string|max:255',
                 'author' => 'required|string|max:255',
@@ -246,5 +246,4 @@ class PostController extends Controller
             return response()->json(['error' => 'Error al eliminar el artículo: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 }

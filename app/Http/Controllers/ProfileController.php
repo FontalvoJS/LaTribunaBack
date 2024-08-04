@@ -20,11 +20,11 @@ class ProfileController extends Controller
             'name.max' => 'El nombre no debe exceder 30 caracteres',
             'name.regex' => 'El nombre solo puede contener letras, números, y los caracteres []_-@',
             'name.unique' => 'El nombre ya está en uso',
-            'email.required' => 'El correo electrónico es obligatorio',
-            'email.string' => 'El correo electrónico no es válido',
-            'email.email' => 'El formato del correo electrónico no es válido',
-            'email.max' => 'El correo electrónico no debe exceder 255 caracteres',
-            'email.unique' => 'El correo electrónico ya está registrado',
+            // 'email.required' => 'El correo electrónico es obligatorio',
+            // 'email.string' => 'El correo electrónico no es válido',
+            // 'email.email' => 'El formato del correo electrónico no es válido',
+            // 'email.max' => 'El correo electrónico no debe exceder 255 caracteres',
+            // 'email.unique' => 'El correo electrónico ya está registrado',
             'club.required' => 'El club es obligatorio',
             'club.string' => 'El club no es válido',
             'parche.required' => 'El parche es obligatorio',
@@ -35,25 +35,28 @@ class ProfileController extends Controller
         ];
 
         try {
+            // Decodificar el JSON del request
+            $data = json_decode($request->getContent(), true);
 
             $user = User::findOrFail(Auth::user()->id);
 
-            $nameChanged = $request->has('name') && $user->name !== $request->name;
-            $emailChanged = $request->has('email') && $user->email !== $request->email;
-            $clubChanged = $request->has('club') && $user->club !== $request->club;
-            $parcheChanged = $request->has('parche') && $user->parche !== $request->parche;
+            $nameChanged = isset($data['name']) && $user->name !== $data['name'];
+            $clubChanged = isset($data['club']) && $user->club !== $data['club'];
+            $parcheChanged = isset($data['parche']) && $user->parche !== $data['parche'];
 
-            if (!$nameChanged && !$emailChanged && !$clubChanged && !$parcheChanged) {
+            if (!$nameChanged && !$clubChanged && !$parcheChanged) {
                 $userData = [
-                    'id' => Crypt::encryptString(auth::user()->id),
-                    'name' => auth::user()->name,
-                    'role' => auth::user()->role,
-                    'email' => auth::user()->email,
-                    'parche' => auth::user()->parche,
-                    'club' => auth::user()->club
+                    'id' => Crypt::encryptString(Auth::user()->id),
+                    'name' => Auth::user()->name,
+                    'role' => Auth::user()->role,
+                    'email' => Auth::user()->email,
+                    'parche' => Auth::user()->parche,
+                    'club' => Auth::user()->club
                 ];
                 return response()->json(['user_session' => $userData, 'error' => 'No se han encontrado cambios para actualizar'], Response::HTTP_NOT_ACCEPTABLE);
             }
+
+            $errorMessages = []; // Define tus mensajes de error personalizados aquí
 
             // Validar y actualizar el nombre de usuario
             if ($nameChanged) {
@@ -63,53 +66,46 @@ class ProfileController extends Controller
                         'string',
                         'min:4',
                         'max:30',
-                        'regex:/^[\w@\-()\[\]]+$/'
+                        'regex:/^[\w@\-()\[\]]+$/',
+                        'unique:users,name,' . $user->id
                     ]
                 ];
 
-                // Agregar regla de unicidad solo si el nombre ya existe
-                if ($user->name !== $request->name) {
-                    $rules['name'][] = 'unique:users';
-                }
+                Validator::make($data, $rules, $errorMessages)->validate();
 
-                Validator::make($request->all(), $rules, $errorMessages)->validate();
-
-                $user->name = $request->name;
+                $user->name = $data['name'];
                 $user->name_modifyed_at = now();
-                $user->save();
-            }
-
-            // Validar y actualizar el correo electrónico
-            if ($emailChanged) {
-                Validator::make($request->all(), [
-                    'email' => 'required|string|email|max:255|unique:users'
-                ], $errorMessages)->validate();
-
-                $user->email = $request->email;
                 $user->save();
             }
 
             // Validar y actualizar el club
             if ($clubChanged) {
-                Validator::make($request->all(), [
+                Validator::make($data, [
                     'club' => 'required|string'
                 ], $errorMessages)->validate();
 
-                $user->club = $request->club;
+                $user->club = $data['club'];
                 $user->save();
             }
 
             // Validar y actualizar el parche
             if ($parcheChanged) {
-                Validator::make($request->all(), [
+                Validator::make($data, [
                     'parche' => 'required|string|min:2|max:6|regex:/^[\w@\-()\[\]]+$/'
                 ], $errorMessages)->validate();
 
-                $user->parche = $request->parche;
+                $user->parche = $data['parche'];
                 $user->save();
             }
-
-            return response()->json(['user_session' => $user, 'message' => 'Se ha actualizado tu perfil'], Response::HTTP_OK);
+            $userData = [
+                'id' => Crypt::encryptString(Auth::user()->id),
+                'name' => $user->name,
+                'role' => $user->role,
+                'email' => $user->email,
+                'parche' => $user->parche,
+                'club' => $user->club
+            ];
+            return response()->json(['user_session' => $userData, 'message' => 'Se ha actualizado tu perfil'], Response::HTTP_OK);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }

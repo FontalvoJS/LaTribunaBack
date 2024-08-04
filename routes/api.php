@@ -2,10 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PostController;
 
 
+// AUTH
 Route::group([
 
     'middleware' => 'api',
@@ -22,6 +24,7 @@ Route::group([
     Route::post('verify-email/', [AuthController::class, 'verifyEmail']);
 });
 
+// PROFILE
 Route::group([
 
     'middleware' => 'auth:api',
@@ -31,6 +34,7 @@ Route::group([
     Route::post('update-profile', [ProfileController::class, 'updateProfile']);
 });
 
+// POSTS AND CONTACT
 Route::group([
 
     'middleware' => 'api',
@@ -43,4 +47,5 @@ Route::group([
     Route::get('get-preview-posts', [PostController::class, 'getPreviewPosts']);
     Route::get('get-one-post/{id}', [PostController::class, 'getOnePost']);
     Route::delete('delete-post/{id}', [PostController::class, 'deletePost']);
+    Route::post('contact', [ContactController::class, 'create']);
 });
