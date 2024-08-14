@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
-use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Password;
@@ -26,6 +25,11 @@ class AuthController extends Controller
         try {
             $errorMessages = [
                 'name.required' => 'El nombre es obligatorio',
+                'name.string' => 'El nombre no es valido',
+                'name.max' => 'El nombre no es valido',
+                'name.min' => 'El nombre no es valido',
+                'name.regex' => 'El nombre solo puede tener letras, numeros y los siguientes caracteres: @|()[]-_',
+                'name.unique' => 'El nombre ya existe',
                 'email.required' => 'El email es obligatorio',
                 'password.required' => 'La contraseña es obligatoria',
                 'password.string' => 'La contraseña no es valida',
@@ -55,6 +59,7 @@ class AuthController extends Controller
                     'max:40',
                     'min:4',
                     'regex:/^[\w@|\-()\[\]]+$/', // Expresión regular personalizada
+                    'unique:users',
                 ],
                 'email' => 'required|string|email|max:255|unique:users|confirmed',
                 'email_confirmation' => 'required|string|email|max:255',
@@ -64,6 +69,9 @@ class AuthController extends Controller
 
             if ($validator->fails()) {
                 return response()->json($validator->errors(), Response::HTTP_BAD_REQUEST);
+            }
+            if (isset($request->verifyReg) && $request->verifyReg == true) {
+                return response()->json(['message' => 'Se validaron los datos a registrar'], Response::HTTP_ACCEPTED);
             }
             User::create([
                 'name' => $request->name,
@@ -84,21 +92,32 @@ class AuthController extends Controller
             'email.required' => 'El email es obligatorio',
             'password.required' => 'La contraseña es obligatoria',
         ];
+
         Validator::make($request->all(), [
             'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:8',
         ], $errorMessages);
+
         $verifIfExists = User::select('email')->where('email', $request->email)->orWhere('name', $request->email)->first();
+
         if (!$verifIfExists) {
             return response()->json(['error' => 'El email no se encuentra registrado'], Response::HTTP_UNAUTHORIZED);
         }
+
         if (!$token = auth::attempt([
             'email' => $verifIfExists->email,
             'password' => $request->password
         ])) {
             return response()->json(['error' => 'Contraseña incorrecta, intenta nuevamente'], Response::HTTP_UNAUTHORIZED);
         }
-        $cookie = cookie('jwt', $token, 60, "/", null, false, true, false, false, "lax");
+
+        $remember = $request->has('remember') && $request->remember === "true";
+
+        // Duración de la cookie: 60 minutos si no se recuerda, 43200 minutos (30 días) si se recuerda
+        $cookieDuration = $remember ? 43200 : 120;
+
+        $cookie = cookie('jwt', $token, $cookieDuration, "/", null, false, true, false, false, "lax");
+
         $userData = [
             'id' => Crypt::encryptString(auth::user()->id),
             'name' => auth::user()->name,
@@ -107,6 +126,7 @@ class AuthController extends Controller
             'parche' => auth::user()->parche,
             'club' => auth::user()->club
         ];
+
         return response()->json(["user_session" => $userData], Response::HTTP_OK)->withCookie($cookie);
     }
 
@@ -114,13 +134,13 @@ class AuthController extends Controller
     {
         try {
             $token = $request->cookie('jwt');
-            if ($token) {
+            if (!empty($token)) {
                 auth::setToken($token)->invalidate();
-                $fake_cookie = cookie('jwt', 'unauthenticated', -1, "/", null, false, true, false, false, "lax");
+                $fake_cookie = cookie('jwt', '', -1, "/", null, false, true, false, false, "lax");
                 return response()->json(['message' => 'Sesión finalizada'], Response::HTTP_OK)->withCookie($fake_cookie);
             }
         } catch (JWTException $e) {
-            return response()->json(['error' => $e], Response::HTTP_BAD_REQUEST);
+            return response()->json(['error: ' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
 
@@ -187,11 +207,11 @@ class AuthController extends Controller
             $email_verifications_table = new EmailVerifications();
             $alreadyExists = $email_verifications_table->where('email', $email)->exists();
             $userExists = User::where('email', $email)->exists();
-            if ($alreadyExists) {
-                $email_verifications_table->where('email', $email)->delete();
-            }
             if ($userExists) {
                 return response()->json(['error' => 'El usuario ya existe'], Response::HTTP_BAD_REQUEST);
+            }
+            if ($alreadyExists) {
+                $email_verifications_table->where('email', $email)->delete();
             }
             $code = rand(100000, 999999);
             $email_verifications_table->token = $code;
@@ -228,8 +248,11 @@ class AuthController extends Controller
             $response = $this->register($request);
             $email_verifications_table->where('token', $token)->update(['verified' => true, 'active' => false]);
             $user = User::where('email', $request->email)->first();
-            $user->email_verified = true;
-            $user->save();
+            if ($user) {
+                $user->email_verified = true;
+                $user->active = true;
+                $user->save();
+            }
             return $response;
         } catch (Exception $e) {
             return response()->json(['error' => 'Hubo un error inesperado. Inténtalo de nuevo. ' . $e->getMessage()], Response::HTTP_BAD_REQUEST);

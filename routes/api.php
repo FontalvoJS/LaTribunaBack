@@ -38,14 +38,27 @@ Route::group([
 Route::group([
 
     'middleware' => 'api',
-    'prefix' => 'admin'
+    'prefix' => 'articles'
 
 ], function ($router) {
     Route::post('upload-content-images', [PostController::class, 'uploadContentImages']);
     Route::post('create-post', [PostController::class, 'createPost']);
     Route::post('update-post', [PostController::class, 'updatePost']);
     Route::get('get-preview-posts', [PostController::class, 'getPreviewPosts']);
-    Route::get('get-one-post/{id}', [PostController::class, 'getOnePost']);
+    Route::get('get-one-post/{id}', [PostController::class, 'getPostBySlug']);
     Route::delete('delete-post/{id}', [PostController::class, 'deletePost']);
     Route::post('contact', [ContactController::class, 'create']);
+    Route::get('get-comments/{slug}', [PostController::class, 'getComments']);
+});
+
+Route::group([
+
+    'middleware' => 'auth:api',
+    'prefix' => 'article-reactions'
+
+], function ($router) {
+    Route::post('post-reaction', [PostController::class, 'postReaction']);
+    Route::get('get-reactions/{slug}', [PostController::class, 'getPostReactions']);
+    Route::post('create-comment', [PostController::class, 'createComment']);
+    Route::post('remove-comment/', [PostController::class, 'removeComment']);
 });

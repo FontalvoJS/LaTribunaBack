@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('email_verifications', function (Blueprint $table) {
+        Schema::create('post_comments', function (Blueprint $table) {
             $table->id();
-            $table->string('email');
-            $table->string('token_type');
-            $table->string('token');
-            $table->boolean('verified')->default(false);
+            $table->foreignId('post_id')->constrained();
+            $table->foreignId('user_id')->constrained();
+            $table->foreignId('parent_id')->nullable()->constrained('post_comments', 'id')->onDelete('cascade');
+            $table->text('content')->nullable();
             $table->boolean('active')->default(true);
-            $table->unsignedBigInteger('user_id')->foreign('user_id')->references('id')->on('users')->onDelete('cascade')->nullable();
             $table->timestamps();
         });
     }
@@ -28,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('email_verifications');
+        Schema::dropIfExists('post_comments');
     }
 };

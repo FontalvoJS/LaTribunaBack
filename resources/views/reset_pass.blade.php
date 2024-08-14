@@ -3,7 +3,7 @@
 
 <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
-    <title>Ingresa </title>
+    <title>Reset Password Email Template</title>
     <meta name="description" content="Reset Password Email Template.">
     <style type="text/css">
         a:hover {
@@ -25,7 +25,7 @@
                     </tr>
                     <tr>
                         <td style="text-align:center;">
-                            <a href="https://www.latribuna.com" title="logo" target="_blank">
+                            <a href="https://rakeshmandal.com" title="logo" target="_blank">
                                 <img width="60" src="../../public/images/logo.png" title="logo" alt="logo">
                             </a>
                         </td>
@@ -44,17 +44,18 @@
                                     <td style="padding:0 35px;">
                                         <h1
                                             style="color:#1e1e2d; font-weight:500; margin:0;font-size:32px;font-family:'Rubik',sans-serif;">
-                                            Codigo de verificación</h1>
+                                            Solicitaste un cambio de contraseña</h1>
                                         <span
                                             style="display:inline-block; vertical-align:middle; margin:29px 0 26px; border-bottom:1px solid #cecece; width:100px;"></span>
                                         <p style="color:#455056; font-size:15px;line-height:24px; margin:0;">
-                                            Ingresa el siguiente codigo que caducará en 1 hora para que verifiques tu
-                                            correo,
-                                            si no lo has solicitado, puedes ignorar este mensaje.
+                                            No podemos simplemente enviarte tu vieja contraseña. <br />Un enlace único
+                                            para que la puedas
+                                            restablecer se ha generado para usted. <br />Para restablecer su
+                                            contraseña, haga clic en el seguir enlace y seguir las instrucciones.
                                         </p>
-                                        <a href="#"
+                                        <a href="{{ $link }}"
                                             style="background:#e2be20;text-decoration:none !important; font-weight:500; margin-top:35px; color:#000000;text-transform:uppercase; font-size:14px;padding:10px 24px;display:inline-block;border-radius:50px;">
-                                            {{ $code }}</a>
+                                            CONTINUAR</a>
                                     </td>
                                 </tr>
                                 <tr>

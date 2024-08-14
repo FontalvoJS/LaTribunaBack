@@ -35,7 +35,7 @@ class VerifyEmailNotify extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->line('Ingresa este codigo para verificar tu cuenta: ' . $this->code)->line('Si no creaste esta cuenta ignora este correo o toma medidas de seguridad.');
+            ->subject('Codigo de verificacion | LaTribuna.com')->view('verify_email', ['code' => $this->code]);
     }
 
     /**

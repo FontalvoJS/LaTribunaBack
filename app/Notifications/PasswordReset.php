@@ -35,11 +35,9 @@ class PasswordReset extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject('Password Reset')
-            ->line('You are receiving this email because we received a password reset request for your account.')
-            ->action('Reset Password', "http://localhost:3000/reset_password/{$this->token}/{$notifiable->email}")
-            ->line('If you did not request a password reset, no further action is required.');
+        // return reset_pass.blade.php in resources/views/ 
+        $link = "http://localhost:3000/reset_password/{$this->token}/{$notifiable->email}";
+        return (new MailMessage)->subject('Solicitud para restablecimiento de contraseña')->view('reset_pass', ['token' => $this->token, 'link' => $link ]);
     }
 
     /**
